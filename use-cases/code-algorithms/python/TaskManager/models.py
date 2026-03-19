@@ -33,6 +33,8 @@ class Task:
         for key, value in kwargs.items():
             if hasattr(self, key):
                 setattr(self, key, value)
+        if 'status' in kwargs and kwargs['status'] != TaskStatus.DONE:
+            self.completed_at = None
         self.updated_at = datetime.now()
 
     def mark_as_done(self):

@@ -20,6 +20,7 @@ class TaskManager:
                 print("Invalid date format. Use YYYY-MM-DD")
                 return None
 
+        tags = tags or []
         task = Task(title, description, priority, due_date, tags)
         task_id = self.storage.add_task(task)
         return task_id
@@ -39,15 +40,28 @@ class TaskManager:
         return self.storage.get_all_tasks()
 
     def update_task_status(self, task_id, new_status_value):
-        new_status = TaskStatus(new_status_value)
+        try:
+            if isinstance(new_status_value, str):
+                new_status = TaskStatus[new_status_value.upper()]
+            else:
+                new_status = TaskStatus(new_status_value)
+        except (KeyError, ValueError):
+            print("Invalid status value.")
+            return False
+
         if new_status == TaskStatus.DONE:
             task = self.storage.get_task(task_id)
-            if task:
-                task.mark_as_done()
-                self.storage.save()
-                return True
+            if not task:
+                print(f"Task {task_id} not found.")
+                return False
+            task.mark_as_done()
+            self.storage.save()
         else:
-            return self.storage.update_task(task_id, status=new_status)
+            self.storage.update_task(task_id, status=new_status)
+
+        print(f"Updated task {task_id} status to {new_status.name}")
+
+        return True
 
     def update_task_priority(self, task_id, new_priority_value):
         new_priority = TaskPriority(new_priority_value)
