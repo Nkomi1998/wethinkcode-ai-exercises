@@ -23,7 +23,6 @@ def find_product_combinations(products, target_price, price_margin=10):
         price_margin: Acceptable deviation from the target price
     """
 ```
-
 ### Example Usage
 
 ```python
