@@ -1,7 +1,7 @@
 # inventory_analysis.py
 def find_product_combinations(products, target_price, price_margin=10):
     """
-    Find all pairs of products where the combined price is within
+    Find all unique pairs of products where the combined price is within
     the target_price ± price_margin range.
 
     Args:
@@ -10,38 +10,60 @@ def find_product_combinations(products, target_price, price_margin=10):
         price_margin: Acceptable deviation from the target price
 
     Returns:
-        List of dictionaries with product pairs and their combined price
+        List of dictionaries with product pairs and their combined price and price difference
     """
+    if not isinstance(products, list) or len(products) < 2:
+        return []
+
+    # Drop invalid products and keep only those with numeric prices
+    sanitized = [p for p in products if isinstance(p, dict) and
+                 'id' in p and 'name' in p and isinstance(p.get('price'), (int, float))]
+    if len(sanitized) < 2:
+        return []
+
+    # Sort by price to enable efficient range search
+    sorted_products = sorted(sanitized, key=lambda p: p['price'])
+    sorted_prices = [p['price'] for p in sorted_products]
+
+    import bisect
     results = []
+    found_pairs = set()  # store tuple of ordered IDs to prevent duplicates
 
-    # For each possible pair of products
-    for i in range(len(products)):
+    n = len(sorted_products)
+    for i in range(n - 1):
         if i % 100 == 0:
-            print(f"Processing product {i+1} of {len(products)}")
-        for j in range(len(products)):
-            # Skip comparing a product with itself
-            if i != j:
-                product1 = products[i]
-                product2 = products[j]
+            print(f"Processing product {i+1} of {n}")
 
-                # Calculate combined price
-                combined_price = product1['price'] + product2['price']
+        base = sorted_products[i]
+        low_price = target_price - price_margin - base['price']
+        high_price = target_price + price_margin - base['price']
 
-                # Check if the combined price is within the target range
-                if (target_price - price_margin) <= combined_price <= (target_price + price_margin):
-                    # Avoid duplicates like (product1, product2) and (product2, product1)
-                    if not any(r['product1']['id'] == product2['id'] and
-                               r['product2']['id'] == product1['id'] for r in results):
+        # Search range in sorted_prices for match candidates
+        lo = bisect.bisect_left(sorted_prices, low_price, i + 1, n)
+        hi = bisect.bisect_right(sorted_prices, high_price, i + 1, n)
 
-                        pair = {
-                            'product1': product1,
-                            'product2': product2,
-                            'combined_price': combined_price,
-                            'price_difference': abs(target_price - combined_price)
-                        }
-                        results.append(pair)
+        for j in range(lo, hi):
+            candidate = sorted_products[j]
+            if candidate['id'] == base['id']:
+                continue
 
-    # Sort by price difference from target
+            combined_price = base['price'] + candidate['price']
+            price_diff = abs(target_price - combined_price)
+
+            if price_diff <= price_margin:
+                pair_key = tuple(sorted((base['id'], candidate['id'])))
+                if pair_key in found_pairs:
+                    continue
+
+                found_pairs.add(pair_key)
+                results.append({
+                    'product1': base,
+                    'product2': candidate,
+                    'combined_price': combined_price,
+                    'price_difference': price_diff
+                })
+
+    # Sort by closeness to target, smaller difference first
     results.sort(key=lambda x: x['price_difference'])
     return results
 
